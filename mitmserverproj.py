@@ -14,7 +14,7 @@ from mitmproxy.tools.dump import DumpMaster
 from mitmproxy.options import Options
 
 # --- Configuration ---
-VT_API_KEY = "0d47d2a03a43518344efd52726514f3b9dacc3e190742ee52eae89e6494dc416"  # Replace with your VirusTotal API key
+VT_API_KEY = "YOUR_VT_API_KEY"  # Replace with your VirusTotal API key
 BLOCK_MALICIOUS = True            # Whether to block malicious URLs
 LISTEN_HOST = "0.0.0.0"
 LISTEN_PORT = 8443
@@ -78,7 +78,8 @@ def start_proxy():
         listen_port=LISTEN_PORT,
         ssl_insecure=SSL_INSECURE
     )
-    master = DumpMaster(opts, event_loop=loop, with_termlog=False, with_dumper=False)
+    # Instantiate DumpMaster without explicit event_loop argument
+    master = DumpMaster(opts, with_termlog=False, with_dumper=False)
     master.addons.add(MitmFirewall())
 
     # Handle clean shutdown
