@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-MITM Firewall Proxy Script.
+MITM Firewall Proxy Script using mitmdump.
 
-- Run with `python mitm_firewall_proxy.py`
-- Automatically launches mitmproxy on port 8443 and uses this script as the addon.
+Run with:
+```bash
+python mitm_firewall_proxy.py
+```
+It will spawn `mitmdump` on port 8443 (no console UI) and use this file as the addon.
 """
 import sys
 import subprocess
@@ -14,11 +17,11 @@ import requests
 from mitmproxy import http
 
 # Configuration
-VT_API_KEY = os.getenv("0d47d2a03a43518344efd52726514f3b9dacc3e190742ee52eae89e6494dc416", "0d47d2a03a43518344efd52726514f3b9dacc3e190742ee52eae89e6494dc416")
+VT_API_KEY = os.getenv("VT_API_KEY", "YOUR_VT_API_KEY")
 BLOCK_MALICIOUS = True  # Toggle URL blocking
 
+# Helper: VT lookup
 def is_malicious(url: str) -> bool:
-    """Check VirusTotal for URL; return True if malicious."""
     url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
     headers = {"x-apikey": VT_API_KEY}
     vt_url = f"https://www.virustotal.com/api/v3/urls/{url_id}"
@@ -27,15 +30,12 @@ def is_malicious(url: str) -> bool:
         if resp.status_code == 200:
             stats = resp.json().get("data", {}).get("attributes", {}).get("last_analysis_stats", {})
             return stats.get("malicious", 0) > 0
-        print(f"[WARN] VT lookup HTTP {resp.status_code} for {url}")
+        print(f"[WARN] VT HTTP {resp.status_code} for {url}")
     except Exception as e:
         print(f"[ERROR] VT query failed for {url}: {e}")
     return False
 
 class MitmFirewall:
-    def __init__(self):
-        print("[INFO] MITM Firewall addon initialized.")
-
     def request(self, flow: http.HTTPFlow) -> None:
         url = flow.request.pretty_url
         print(f"[REQUEST] {url}")
@@ -62,19 +62,19 @@ class MitmFirewall:
 
 addons = [MitmFirewall()]
 
+# Entrypoint: spawn mitmdump
 if __name__ == "__main__":
-    # Launch mitmproxy with this script as the addon
     cmd = [
-        "mitmproxy",
+        "mitmdump",
         "-p", "8443",
         "--ssl-insecure",
         "-s", sys.argv[0]
     ]
-    print(f"[*] Starting mitmproxy: {' '.join(cmd)}")
+    print(f"[*] Starting mitmdump: {' '.join(cmd)}")
     proc = subprocess.Popen(cmd)
 
     def shutdown(signum, frame):
-        print("[*] Shutting down mitmproxy...")
+        print("[*] Shutting down mitmdump...")
         proc.terminate()
         sys.exit(0)
 
