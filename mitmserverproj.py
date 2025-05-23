@@ -2,11 +2,10 @@
 MITM Firewall Proxy Script using mitmdump.
 
 Run with:
-```bash
-python mitm_firewall_proxy.py
-```
-It will spawn `mitmdump` on port 8443 (no console UI) and use this file as the addon.
+    python mitm_firewall_proxy.py
+It spawns `mitmdump` on port 8443 and uses this file as the addon.
 """
+
 import sys
 import subprocess
 import signal
@@ -17,9 +16,10 @@ from mitmproxy import http
 
 # Configuration
 VT_API_KEY = os.getenv("0d47d2a03a43518344efd52726514f3b9dacc3e190742ee52eae89e6494dc416", "0d47d2a03a43518344efd52726514f3b9dacc3e190742ee52eae89e6494dc416")
-BLOCK_MALICIOUS = True  # Toggle URL blocking
 
-# Helper: VT lookup
+BLOCK_MALICIOUS = True
+
+# VirusTotal URL reputation check
 def is_malicious(url: str) -> bool:
     url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
     headers = {"x-apikey": VT_API_KEY}
@@ -34,10 +34,33 @@ def is_malicious(url: str) -> bool:
         print(f"[ERROR] VT query failed for {url}: {e}")
     return False
 
+# Main MITM class
 class MitmFirewall:
     def request(self, flow: http.HTTPFlow) -> None:
         url = flow.request.pretty_url
+        path = flow.request.path
         print(f"[REQUEST] {url}")
+
+        # Serve CA cert directly from mitmproxy storage
+        if path == "/mitmproxy-ca-cert.pem":
+            ca_path = os.path.expanduser("~/.mitmproxy/mitmproxy-ca-cert.pem")
+            if os.path.exists(ca_path):
+                with open(ca_path, "rb") as f:
+                    cert_data = f.read()
+                flow.response = http.HTTPResponse.make(
+                    200,
+                    cert_data,
+                    {"Content-Type": "application/x-pem-file"}
+                )
+            else:
+                flow.response = http.HTTPResponse.make(
+                    404,
+                    b"CA certificate not found",
+                    {"Content-Type": "text/plain"}
+                )
+            return
+
+        # VirusTotal block logic
         if BLOCK_MALICIOUS and is_malicious(url):
             print(f"[BLOCK] Malicious URL: {url}")
             flow.response = http.HTTPResponse.make(
@@ -61,7 +84,7 @@ class MitmFirewall:
 
 addons = [MitmFirewall()]
 
-# Entrypoint: spawn mitmdump
+# Entrypoint to run mitmdump
 if __name__ == "__main__":
     cmd = [
         "mitmdump",
