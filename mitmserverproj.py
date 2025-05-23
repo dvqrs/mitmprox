@@ -1,7 +1,13 @@
+#!/usr/bin/env python3
+"""
+Standalone MITM Firewall Proxy using mitmproxy's programmatic API.
+Run directly with `python mitm_firewall_proxy.py` and it will start listening on port 8443.
+"""
 import base64
 import requests
 import signal
 import sys
+import asyncio
 
 from mitmproxy import http, ctx
 from mitmproxy.tools.dump import DumpMaster
@@ -63,12 +69,16 @@ class MitmFirewall:
 
 # --- Main Entrypoint ---
 def start_proxy():
+    # Ensure there's an asyncio event loop
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     opts = Options(
         listen_host=LISTEN_HOST,
         listen_port=LISTEN_PORT,
         ssl_insecure=SSL_INSECURE
     )
-    master = DumpMaster(opts, with_termlog=False, with_dumper=False)
+    master = DumpMaster(opts, event_loop=loop, with_termlog=False, with_dumper=False)
     master.addons.add(MitmFirewall())
 
     # Handle clean shutdown
