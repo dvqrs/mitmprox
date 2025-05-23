@@ -1,3 +1,18 @@
+"""
+MITM Firewall Proxy Script using mitmdump.
+
+Run with:
+```bash
+python mitm_firewall_proxy.py
+```
+It will spawn `mitmdump` on port 8443 (no console UI) and use this file as the addon.
+"""
+import sys
+import subprocess
+import signal
+import os
+import base64
+import requests
 from mitmproxy import http
 
 # Configuration
